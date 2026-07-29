@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT COMET - CORREGIDO (DESPARICIÓN Y LIMPIEZA FINAL)
+-- SCRIPT COMET - DEFINITIVO (FORMA LARGA, 3 PASADAS Y DESTRUCCIÓN REAL)
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -13,7 +13,8 @@ local FRAMES_TEXTURA = {
     "rbxassetid://86355525071305",
     "rbxassetid://130947174288314"
 }
-local TAMANO_ENTIDAD = Vector3.new(12, 12, 0.2)
+-- Proporción alargada estilo cometa original
+local TAMANO_ENTIDAD = Vector3.new(20, 10, 4)
 local VELOCIDAD_ULTRA = 450 
 local PASO_TIEMPO = 0.010 
 
@@ -45,7 +46,7 @@ entidad.CanCollide = false
 entidad.CFrame = posicionSpawn * CFrame.new(0, 3, 0)
 entidad.Parent = workspace
 
--- Decals laterales (Izquierda y Derecha para efecto cometa lateral)
+-- Decals laterales orientados para que mire a los lados mientras avanza al frente
 local decalIzquierda = Instance.new("Decal")
 decalIzquierda.Texture = FRAMES_TEXTURA[1]
 decalIzquierda.Face = Enum.NormalId.Left
@@ -60,7 +61,7 @@ decalDerecha.Parent = entidad
 local luzAzul = Instance.new("PointLight")
 luzAzul.Color = Color3.fromRGB(0, 170, 255)
 luzAzul.Brightness = 8
-luzAzul.Range = 30
+luzAzul.Range = 35
 luzAzul.Parent = entidad
 
 print("[SISTEMA] Comet cargado correctamente.")
@@ -131,7 +132,7 @@ task.spawn(function()
 	end
 end)
 
--- Partículas de frío corregidas para aparecer en las habitaciones
+-- Partículas de frío en las habitaciones
 local function soltarParticulasFrio()
     for _, sala in ipairs(currentRooms:GetChildren()) do
         if tonumber(sala.Name) then
@@ -203,7 +204,7 @@ local conexionTemblor = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Movimiento principal (3 pasadas y limpieza segura al terminar)
+-- Movimiento principal (3 pasadas exactas con destrucción garantizada al final)
 task.spawn(function()
     local pGui = localPlayer:WaitForChild("PlayerGui", 5)
 	local contenedorAudio = pGui or workspace.CurrentCamera
@@ -268,7 +269,8 @@ task.spawn(function()
             local nodosExistentes = {}
             
             if rutaInterna then
-                for _, nodo in ipairs(rutaInterna:GetChildren()) do 
+                local desc = rutaInterna:GetChildren()
+                for _, nodo in ipairs(desc) do 
                     if nodo:IsA("BasePart") then table.insert(nodosExistentes, nodo) end 
                 end
                 table.sort(nodosExistentes, function(a, b)
@@ -297,7 +299,7 @@ task.spawn(function()
         task.wait(0.5)
     end
 
-    -- Liberar recursos y destruir la entidad de forma segura al terminar
+    -- Limpieza total garantizada al terminar las 3 pasadas
     soltarParticulasFrio()
 
     if sonidoMovimiento then sonidoMovimiento:Destroy() end
@@ -305,5 +307,5 @@ task.spawn(function()
     if conexionTemblor then conexionTemblor:Disconnect() end
     if entidad then entidad:Destroy() end
     
-    print("[SISTEMA] Comet finalizó sus 3 pasadas y se destruyó correctamente.")
+    print("[SISTEMA] Comet completó sus 3 pasadas y se eliminó correctamente.")
 end)
