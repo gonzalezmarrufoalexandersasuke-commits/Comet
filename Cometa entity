@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT COMET - DEFINITIVO (FORMA LARGA, 3 PASADAS Y DESTRUCCIÓN REAL)
+-- SCRIPT COMET - CORREGIDO Y ASEGURADO (DESTRUCTOR Y TEXTURA TOTAL)
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -13,7 +13,7 @@ local FRAMES_TEXTURA = {
     "rbxassetid://86355525071305",
     "rbxassetid://130947174288314"
 }
--- Proporción alargada estilo cometa original
+-- Proporción alargada estilo cometa
 local TAMANO_ENTIDAD = Vector3.new(20, 10, 4)
 local VELOCIDAD_ULTRA = 450 
 local PASO_TIEMPO = 0.010 
@@ -46,16 +46,17 @@ entidad.CanCollide = false
 entidad.CFrame = posicionSpawn * CFrame.new(0, 3, 0)
 entidad.Parent = workspace
 
--- Decals laterales orientados para que mire a los lados mientras avanza al frente
-local decalIzquierda = Instance.new("Decal")
-decalIzquierda.Texture = FRAMES_TEXTURA[1]
-decalIzquierda.Face = Enum.NormalId.Left
-decalIzquierda.Parent = entidad
+-- Decals en múltiples caras para asegurar que se vea desde cualquier ángulo lateral y frontal/trasero
+local carasDecal = {Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Front, Enum.NormalId.Back}
+local decalsEntidad = {}
 
-local decalDerecha = Instance.new("Decal")
-decalDerecha.Texture = FRAMES_TEXTURA[1]
-decalDerecha.Face = Enum.NormalId.Right
-decalDerecha.Parent = entidad
+for _, cara in ipairs(carasDecal) do
+    local decal = Instance.new("Decal")
+    decal.Texture = FRAMES_TEXTURA[1]
+    decal.Face = cara
+    decal.Parent = entidad
+    table.insert(decalsEntidad, decal)
+end
 
 -- Luz azul brillante para la entidad
 local luzAzul = Instance.new("PointLight")
@@ -66,7 +67,7 @@ luzAzul.Parent = entidad
 
 print("[SISTEMA] Comet cargado correctamente.")
 
--- Animación de frames en loop (6.67 FPS aprox)
+-- Animación de frames en loop (6.67 FPS aprox) para todos los decals
 task.spawn(function()
     local indice = 1
     while entidad and entidad.Parent do
@@ -74,8 +75,11 @@ task.spawn(function()
         if not entidad.Parent then break end
         indice = (indice % #FRAMES_TEXTURA) + 1
         local texturaActual = FRAMES_TEXTURA[indice]
-        decalIzquierda.Texture = texturaActual
-        decalDerecha.Texture = texturaActual
+        for _, decal in ipairs(decalsEntidad) do
+            if decal and decal.Parent then
+                decal.Texture = texturaActual
+            end
+        end
     end
 end)
 
@@ -121,7 +125,7 @@ task.spawn(function()
 			if hum.Health <= 0 then continue end
 			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < 22 then
 				if escanearSeguridadArmario(personaje) then
-					-- Seguro
+					-- Seguro en armario
 				else
 					localPlayer:SetAttribute("AsesinadoPorComet", true)
 					task.wait(0.01)
@@ -132,62 +136,60 @@ task.spawn(function()
 	end
 end)
 
--- Partículas de frío en las habitaciones
+-- Partículas de frío seguras con pcall para evitar errores de índice nil
 local function soltarParticulasFrio()
-    for _, sala in ipairs(currentRooms:GetChildren()) do
-        if tonumber(sala.Name) then
-            local posSala = Vector3.new(0, 0, 0)
-            local encontrada = false
-            
-            if sala.PrimaryPart then
-                posSala = sala.PrimaryPart.Position
-                encontrada = true
-            else
-                for _, desc in ipairs(sala:GetDescendants()) do
-                    if desc:IsA("BasePart") then
-                        posSala = desc.Position
-                        encontrada = true
-                        break
+    pcall(function()
+        for _, sala in ipairs(currentRooms:GetChildren()) do
+            if tonumber(sala.Name) then
+                local posSala = nil
+                
+                if sala.PrimaryPart then
+                    posSala = sala.PrimaryPart.Position
+                else
+                    for _, desc in ipairs(sala:GetDescendants()) do
+                        if desc:IsA("BasePart") then
+                            posSala = desc.Position
+                            break
+                        end
                     end
                 end
-            end
-            
-            if not encontrada then
-                pcall(function()
-                    posSala = sala:GetPivot().Position
-                    encontrada = true
-                end)
-            end
-            
-            if encontrada then
-                local contenedor = Instance.new("Part")
-                contenedor.Size = Vector3.new(1, 1, 1)
-                contenedor.Transparency = 1
-                contenedor.Anchored = true
-                contenedor.CanCollide = false
-                contenedor.Position = posSala + Vector3.new(0, 2, 0)
-                contenedor.Parent = workspace
                 
-                local emisor = Instance.new("ParticleEmitter")
-                emisor.Texture = TEXTURA_PARTICULA_FRIO
-                emisor.Rate = 60
-                emisor.Speed = NumberRange.new(2, 6)
-                emisor.Lifetime = NumberRange.new(1.5, 2.5)
-                emisor.Rotation = NumberRange.new(0, 360)
-                emisor.RotSpeed = NumberRange.new(-90, 90)
-                emisor.Size = NumberSequence.new({NumberKeypoint.new(0, 2.5), NumberKeypoint.new(1, 0)})
-                emisor.SpreadAngle = Vector2.new(360, 360)
-                emisor.Enabled = true
-                emisor.Parent = contenedor
+                if not posSala then
+                    pcall(function()
+                        posSala = sala:GetPivot().Position
+                    end)
+                end
                 
-                task.delay(2, function()
-                    if emisor then emisor.Enabled = false end
-                    task.wait(2.5)
-                    if contenedor then contenedor:Destroy() end
-                end)
+                if posSala then
+                    local contenedor = Instance.new("Part")
+                    contenedor.Size = Vector3.new(1, 1, 1)
+                    contenedor.Transparency = 1
+                    contenedor.Anchored = true
+                    contenedor.CanCollide = false
+                    contenedor.Position = posSala + Vector3.new(0, 2, 0)
+                    contenedor.Parent = workspace
+                    
+                    local emisor = Instance.new("ParticleEmitter")
+                    emisor.Texture = TEXTURA_PARTICULA_FRIO
+                    emisor.Rate = 50
+                    emisor.Speed = NumberRange.new(2, 6)
+                    emisor.Lifetime = NumberRange.new(1.5, 2.5)
+                    emisor.Rotation = NumberRange.new(0, 360)
+                    emisor.RotSpeed = NumberRange.new(-90, 90)
+                    emisor.Size = NumberSequence.new({NumberKeypoint.new(0, 2.5), NumberKeypoint.new(1, 0)})
+                    emisor.SpreadAngle = Vector2.new(360, 360)
+                    emisor.Enabled = true
+                    emisor.Parent = contenedor
+                    
+                    task.delay(2, function()
+                        if emisor then emisor.Enabled = false end
+                        task.wait(2.5)
+                        if contenedor then contenedor:Destroy() end
+                    end)
+                end
             end
         end
-    end
+    end)
 end
 
 -- Temblor de cámara
@@ -204,7 +206,7 @@ local conexionTemblor = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Movimiento principal (3 pasadas exactas con destrucción garantizada al final)
+-- Movimiento principal (3 pasadas exactas con destrucción garantizada y control de errores)
 task.spawn(function()
     local pGui = localPlayer:WaitForChild("PlayerGui", 5)
 	local contenedorAudio = pGui or workspace.CurrentCamera
@@ -299,13 +301,23 @@ task.spawn(function()
         task.wait(0.5)
     end
 
-    -- Limpieza total garantizada al terminar las 3 pasadas
+    -- Limpieza total garantizada de la entidad, sonidos y conexiones
     soltarParticulasFrio()
 
-    if sonidoMovimiento then sonidoMovimiento:Destroy() end
-    if sonidoAdvertencia then sonidoAdvertencia:Destroy() end
-    if conexionTemblor then conexionTemblor:Disconnect() end
-    if entidad then entidad:Destroy() end
+    if sonidoMovimiento then 
+        sonidoMovimiento:Stop()
+        sonidoMovimiento:Destroy() 
+    end
+    if sonidoAdvertencia then 
+        sonidoAdvertencia:Stop()
+        sonidoAdvertencia:Destroy() 
+    end
+    if conexionTemblor then 
+        conexionTemblor:Disconnect() 
+    end
+    if entidad then 
+        entidad:Destroy() 
+    end
     
-    print("[SISTEMA] Comet completó sus 3 pasadas y se eliminó correctamente.")
+    print("[SISTEMA] Comet completó sus 3 pasadas y se eliminó limpiamente.")
 end)
