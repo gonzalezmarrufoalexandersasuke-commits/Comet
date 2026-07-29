@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT B-35 - MODIFICADO (COMETA LATERAL Y EFECTOS DE FRÍO)
+-- SCRIPT COMET - MODIFICADO (COMETA LATERAL, LUZ AZUL Y 3 PASADAS)
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -26,7 +26,7 @@ if not currentRooms then
     error("¡Error! No se encontró 'CurrentRooms'.")
 end
 
-local entidadPrevia = workspace:FindFirstChild("IA_Rush_B35")
+local entidadPrevia = workspace:FindFirstChild("IA_Comet")
 if entidadPrevia then entidadPrevia:Destroy() end
 
 local sala1 = currentRooms:FindFirstChild("0") or currentRooms:FindFirstChild("1")
@@ -37,7 +37,7 @@ end
 local posicionSpawn = puertaSpawn and puertaSpawn.CFrame or CFrame.new(0, 5, 0)
 
 local entidad = Instance.new("Part")
-entidad.Name = "IA_Rush_B35"
+entidad.Name = "IA_Comet"
 entidad.Size = TAMANO_ENTIDAD
 entidad.Transparency = 1
 entidad.Anchored = true
@@ -45,12 +45,25 @@ entidad.CanCollide = false
 entidad.CFrame = posicionSpawn * CFrame.new(0, 3, 0)
 entidad.Parent = workspace
 
-local decalFrente = Instance.new("Decal")
-decalFrente.Texture = FRAMES_TEXTURA[1]; decalFrente.Face = Enum.NormalId.Front; decalFrente.Parent = entidad
-local decalAtras = Instance.new("Decal")
-decalAtras.Texture = FRAMES_TEXTURA[1]; decalAtras.Face = Enum.NormalId.Back; decalAtras.Parent = entidad
+-- Decals laterales (Izquierda y Derecha para efecto cometa lateral)
+local decalIzquierda = Instance.new("Decal")
+decalIzquierda.Texture = FRAMES_TEXTURA[1]
+decalIzquierda.Face = Enum.NormalId.Left
+decalIzquierda.Parent = entidad
 
-print("[SISTEMA] B-35 Cometa cargado correctamente.")
+local decalDerecha = Instance.new("Decal")
+decalDerecha.Texture = FRAMES_TEXTURA[1]
+decalDerecha.Face = Enum.NormalId.Right
+decalDerecha.Parent = entidad
+
+-- Luz azul brillante para la entidad
+local luzAzul = Instance.new("PointLight")
+luzAzul.Color = Color3.fromRGB(0, 170, 255)
+luzAzul.Brightness = 8
+luzAzul.Range = 30
+luzAzul.Parent = entidad
+
+print("[SISTEMA] Comet cargado correctamente.")
 
 -- Animación de frames en loop (6.67 FPS aprox)
 task.spawn(function()
@@ -60,8 +73,8 @@ task.spawn(function()
         if not entidad.Parent then break end
         indice = (indice % #FRAMES_TEXTURA) + 1
         local texturaActual = FRAMES_TEXTURA[indice]
-        decalFrente.Texture = texturaActual
-        decalAtras.Texture = texturaActual
+        decalIzquierda.Texture = texturaActual
+        decalDerecha.Texture = texturaActual
     end
 end)
 
@@ -109,7 +122,7 @@ task.spawn(function()
 				if escanearSeguridadArmario(personaje) then
 					-- Seguro
 				else
-					localPlayer:SetAttribute("AsesinadoPorB35", true)
+					localPlayer:SetAttribute("AsesinadoPorComet", true)
 					task.wait(0.01)
 					hum.Health = 0
 				end
@@ -118,34 +131,57 @@ task.spawn(function()
 	end
 end)
 
--- Partículas de frío al finalizar
+-- Partículas de frío corregidas para aparecer en las habitaciones
 local function soltarParticulasFrio()
     for _, sala in ipairs(currentRooms:GetChildren()) do
         if tonumber(sala.Name) then
-            local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
-            if centroSala and centroSala:IsA("BasePart") then
+            local posSala = Vector3.new(0, 0, 0)
+            local encontrada = false
+            
+            if sala.PrimaryPart then
+                posSala = sala.PrimaryPart.Position
+                encontrada = true
+            else
+                for _, desc in ipairs(sala:GetDescendants()) do
+                    if desc:IsA("BasePart") then
+                        posSala = desc.Position
+                        encontrada = true
+                        break
+                    end
+                end
+            end
+            
+            if not encontrada then
+                pcall(function()
+                    posSala = sala:GetPivot().Position
+                    encontrada = true
+                end)
+            end
+            
+            if encontrada then
                 local contenedor = Instance.new("Part")
                 contenedor.Size = Vector3.new(1, 1, 1)
                 contenedor.Transparency = 1
                 contenedor.Anchored = true
                 contenedor.CanCollide = false
-                contenedor.Position = centroSala.Position + Vector3.new(0, 2, 0)
+                contenedor.Position = posSala + Vector3.new(0, 2, 0)
                 contenedor.Parent = workspace
                 
                 local emisor = Instance.new("ParticleEmitter")
                 emisor.Texture = TEXTURA_PARTICULA_FRIO
-                emisor.Rate = 50
+                emisor.Rate = 60
                 emisor.Speed = NumberRange.new(2, 6)
-                emisor.Lifetime = NumberRange.new(1, 2)
+                emisor.Lifetime = NumberRange.new(1.5, 2.5)
                 emisor.Rotation = NumberRange.new(0, 360)
                 emisor.RotSpeed = NumberRange.new(-90, 90)
-                emisor.Size = NumberSequence.new({NumberKeypoint.new(0, 2), NumberKeypoint.new(1, 0)})
+                emisor.Size = NumberSequence.new({NumberKeypoint.new(0, 2.5), NumberKeypoint.new(1, 0)})
                 emisor.SpreadAngle = Vector2.new(360, 360)
+                emisor.Enabled = true
                 emisor.Parent = contenedor
                 
-                task.delay(1.5, function()
+                task.delay(2, function()
                     if emisor then emisor.Enabled = false end
-                    task.wait(2)
+                    task.wait(2.5)
                     if contenedor then contenedor:Destroy() end
                 end)
             end
@@ -167,7 +203,7 @@ local conexionTemblor = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Movimiento principal (2 pasadas)
+-- Movimiento principal (Modificado a 3 pasadas)
 task.spawn(function()
     local pGui = localPlayer:WaitForChild("PlayerGui", 5)
 	local contenedorAudio = pGui or workspace.CurrentCamera
@@ -188,7 +224,7 @@ task.spawn(function()
     sonidoMovimiento.Parent = contenedorAudio
     sonidoMovimiento:Play()
 
-    for pasada = 1, 2 do
+    for pasada = 1, 3 do
         if not entidad or not entidad.Parent then break end
 
         local function moverFisicamenteHacia(posicionDestino, esPuerta)
@@ -267,6 +303,5 @@ task.spawn(function()
     if sonidoAdvertencia then sonidoAdvertencia:Destroy() end
     if conexionTemblor then conexionTemblor:Disconnect() end
     if entidad then entidad:Destroy() end
-    print("[SISTEMA] B-35 Cometa finalizó su recorrido.")
+    print("[SISTEMA] Comet finalizó su recorrido.")
 end)
-
