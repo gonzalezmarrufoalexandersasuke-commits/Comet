@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT COMET - MODIFICADO (COMETA LATERAL, LUZ AZUL Y 3 PASADAS)
+-- SCRIPT COMET - CORREGIDO (DESPARICIÓN Y LIMPIEZA FINAL)
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -203,7 +203,7 @@ local conexionTemblor = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Movimiento principal (Modificado a 3 pasadas)
+-- Movimiento principal (3 pasadas y limpieza segura al terminar)
 task.spawn(function()
     local pGui = localPlayer:WaitForChild("PlayerGui", 5)
 	local contenedorAudio = pGui or workspace.CurrentCamera
@@ -297,11 +297,13 @@ task.spawn(function()
         task.wait(0.5)
     end
 
+    -- Liberar recursos y destruir la entidad de forma segura al terminar
     soltarParticulasFrio()
 
     if sonidoMovimiento then sonidoMovimiento:Destroy() end
     if sonidoAdvertencia then sonidoAdvertencia:Destroy() end
     if conexionTemblor then conexionTemblor:Disconnect() end
     if entidad then entidad:Destroy() end
-    print("[SISTEMA] Comet finalizó su recorrido.")
+    
+    print("[SISTEMA] Comet finalizó sus 3 pasadas y se destruyó correctamente.")
 end)
